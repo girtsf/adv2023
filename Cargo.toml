@@ -4,7 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+lazy_static = "1.4.0"
 regex = "1.10.2"
+
+[[bin]]
+name = "day1"
+path = "src/day1.rs"
 
 [[bin]]
 name = "day2"
