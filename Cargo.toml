@@ -1,0 +1,11 @@
+[package]
+name = "adv2023"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+regex = "1.10.2"
+
+[[bin]]
+name = "day2"
+path = "src/day2.rs"
