@@ -2,56 +2,45 @@ use std::collections::HashMap;
 
 use adv2023::read_input;
 
-#[derive(Debug)]
-struct Cubes {
-    count: u32,
-    color: String,
+// Parses "<n> <color>".
+fn parse_cube_count(s: &str) -> (String, u32) {
+    let (count_str, color) = s.trim().split_once(' ').unwrap();
+    let count: u32 = count_str.parse().unwrap();
+    (color.to_string(), count)
 }
+
+#[derive(Debug, Clone)]
+struct Cubes(HashMap<String, u32>);
 
 impl Cubes {
-    // Parses "<n> <color>".
+    // Parses "," delimited "<n> <color>".
     fn parse(s: &str) -> Self {
-        let (count_str, color) = s.trim().split_once(' ').unwrap();
-        let count: u32 = count_str.parse().unwrap();
-        Self {
-            count,
-            color: color.to_string(),
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Round {
-    cubes: Vec<Cubes>,
-}
-
-type Limits = HashMap<String, u32>;
-
-impl Round {
-    fn parse(s: &str) -> Self {
-        let cubes = s.split(',').map(|x| Cubes::parse(x)).collect();
-        Self { cubes }
+        Cubes(HashMap::from_iter(
+            s.split(',').map(|x| parse_cube_count(x)),
+        ))
     }
 
-    fn fits(&self, limits: &Limits) -> bool {
-        self.cubes
+    fn fits(&self, limits: &Cubes) -> bool {
+        self.0
             .iter()
-            .all(|cubes| &cubes.count <= limits.get(&cubes.color).unwrap())
+            .all(|(color, count)| count <= limits.0.get(color).unwrap())
     }
 
-    fn limits(&self) -> Limits {
-        Limits::from_iter(
-            self.cubes
-                .iter()
-                .map(|cubes| (cubes.color.clone(), cubes.count)),
-        )
+    fn merge_max(mut self, other: Cubes) -> Cubes {
+        other.0.into_iter().for_each(|(color, count)| {
+            self.0
+                .entry(color)
+                .and_modify(|v| *v = count.max(*v))
+                .or_insert(count);
+        });
+        self
     }
 }
 
 #[derive(Debug)]
 struct Game {
     id: u32,
-    rounds: Vec<Round>,
+    rounds: Vec<Cubes>,
 }
 
 impl Game {
@@ -59,48 +48,36 @@ impl Game {
         let (game_and_id, rest) = line.split_once(":").unwrap();
         let (_, id_str) = game_and_id.split_once(" ").unwrap();
         let id: u32 = id_str.parse().unwrap();
-        let rounds = rest.split(';').map(|x| Round::parse(x)).collect();
+        let rounds = rest.split(';').map(|x| Cubes::parse(x)).collect();
         Self { id, rounds }
     }
 
-    fn fits(&self, limits: &Limits) -> bool {
+    fn fits(&self, limits: &Cubes) -> bool {
         self.rounds.iter().all(|round| round.fits(limits))
     }
 
-    fn limits(&self) -> Limits {
+    fn min_cubes_needed(&self) -> Cubes {
         self.rounds
             .iter()
-            .map(|round| round.limits())
-            .fold(Limits::new(), merge_limits)
+            .cloned()
+            .reduce(Cubes::merge_max)
+            .unwrap()
     }
 
     fn power(&self) -> u32 {
-        let limits = self.limits();
-        limits.iter().fold(1, |acc, (_, v)| acc * v)
+        self.min_cubes_needed()
+            .0
+            .values()
+            .cloned()
+            .reduce(|acc, v| acc * v)
+            .unwrap()
     }
-}
-
-fn merge_limits(mut limit1: Limits, limit2: Limits) -> Limits {
-    limit2.into_iter().for_each(|(k, v)| {
-        if limit1.contains_key(&k) {
-            let v1 = limit1.get_mut(&k).unwrap();
-            if v > *v1 {
-                *v1 = v;
-            }
-        } else {
-            limit1.insert(k, v);
-        }
-    });
-    limit1
 }
 
 fn main() {
     let input = read_input();
     let games: Vec<Game> = input.lines().map(|line| Game::parse(line)).collect();
-    let mut limits = Limits::new();
-    limits.insert("red".to_string(), 12);
-    limits.insert("green".to_string(), 13);
-    limits.insert("blue".to_string(), 14);
+    let limits = Cubes::parse("12 red, 13 green, 14 blue");
     let part1: u32 = games
         .iter()
         .filter(|game| game.fits(&limits))
