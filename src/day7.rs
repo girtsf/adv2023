@@ -1,13 +1,23 @@
 use itertools::Itertools;
+use log::debug;
 use std::str::FromStr;
 
-const ORDER: [char; 13] = [
+const ORDER_PART1: [char; 13] = [
     'A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2',
 ];
 
-fn cmp_cards(a: char, b: char) -> std::cmp::Ordering {
-    let idx_a = ORDER.iter().position(|&x| x == a).unwrap();
-    let idx_b = ORDER.iter().position(|&x| x == b).unwrap();
+const ORDER_PART2: [char; 13] = [
+    'A', 'K', 'Q', 'T', '9', '8', '7', '6', '5', '4', '3', '2', 'J',
+];
+
+fn cmp_cards(a: char, b: char, use_joker: bool) -> std::cmp::Ordering {
+    let order = if use_joker {
+        &ORDER_PART2
+    } else {
+        &ORDER_PART1
+    };
+    let idx_a = order.iter().position(|&x| x == a).unwrap();
+    let idx_b = order.iter().position(|&x| x == b).unwrap();
     idx_b.cmp(&idx_a)
 }
 
@@ -27,58 +37,77 @@ struct Hand {
     cards: [char; 5],
 }
 
+fn determine_type_by_counts(cards: &[char]) -> HandType {
+    let label_counts = cards.iter().counts();
+    let counts_sorted: Vec<_> = label_counts.values().copied().sorted().rev().collect();
+
+    match counts_sorted[0] {
+        5 => HandType::FiveOfAKind,
+        4 => HandType::FourOfAKind,
+        3 => {
+            if counts_sorted.len() > 1 && counts_sorted[1] == 2 {
+                HandType::FullHouse
+            } else {
+                HandType::ThreeOfAKind
+            }
+        }
+        2 => {
+            if counts_sorted.len() > 1 && counts_sorted[1] == 2 {
+                HandType::TwoPair
+            } else {
+                HandType::OnePair
+            }
+        }
+        1 => HandType::HighCard,
+        _ => panic!("unexpected counts: {label_counts:?}"),
+    }
+}
+
+fn upgrade_with_joker(t: HandType) -> HandType {
+    match t {
+        HandType::HighCard => HandType::OnePair,
+        HandType::OnePair => HandType::ThreeOfAKind,
+        HandType::TwoPair => HandType::FullHouse,
+        HandType::ThreeOfAKind => HandType::FourOfAKind,
+        HandType::FourOfAKind => HandType::FiveOfAKind,
+        _ => panic!("cannot upgrade {t:?}"),
+    }
+}
+
 impl Hand {
-    fn hand_type(&self) -> HandType {
-        let counts = self.cards.iter().counts();
-        match counts.len() {
-            5 => HandType::HighCard,
-            4 => HandType::OnePair,
-            3 => {
-                // AAA B C => ThreeOfAKind
-                if counts.values().max().unwrap() == &3 {
-                    HandType::ThreeOfAKind
-                } else {
-                    // AA BB C => TwoPair
-                    HandType::TwoPair
-                }
+    fn hand_type(&self, use_joker: bool) -> HandType {
+        if use_joker {
+            let cards_without_jokers: Vec<_> =
+                self.cards.iter().copied().filter(|&c| c != 'J').collect();
+            let joker_count = 5 - cards_without_jokers.len();
+            if joker_count == 5 {
+                return HandType::FiveOfAKind;
             }
-            2 => {
-                // AAAA B => FourOfAKind
-                if counts.values().max().unwrap() == &4 {
-                    HandType::FourOfAKind
-                } else {
-                    // AAA BB => FullHouse
-                    HandType::FullHouse
-                }
+            let mut t = determine_type_by_counts(&cards_without_jokers);
+            for _ in 0..joker_count {
+                t = upgrade_with_joker(t);
             }
-            1 => HandType::FiveOfAKind,
-            _ => panic!("unexpected counts: {counts:?}"),
+            t
+        } else {
+            determine_type_by_counts(&self.cards)
         }
     }
 }
 
-impl Ord for Hand {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        let hand_type_self = self.hand_type();
-        let hand_type_other = other.hand_type();
-        if hand_type_self != hand_type_other {
-            return hand_type_self.cmp(&hand_type_other);
-        }
-        // Otherwise, compare each card.
-        for i in 0..5 {
-            let ord = cmp_cards(self.cards[i], other.cards[i]);
-            if !matches!(ord, std::cmp::Ordering::Equal) {
-                return ord;
-            }
-        }
-        panic!("same hands??");
+fn cmp_hands(a: &Hand, b: &Hand, use_joker: bool) -> std::cmp::Ordering {
+    let hand_type_a = a.hand_type(use_joker);
+    let hand_type_b = b.hand_type(use_joker);
+    if hand_type_a != hand_type_b {
+        return hand_type_a.cmp(&hand_type_b);
     }
-}
-
-impl PartialOrd for Hand {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.cmp(other))
+    // Otherwise, compare each card.
+    for i in 0..5 {
+        let ord = cmp_cards(a.cards[i], b.cards[i], use_joker);
+        if !matches!(ord, std::cmp::Ordering::Equal) {
+            return ord;
+        }
     }
+    panic!("same hands??");
 }
 
 impl std::fmt::Display for Hand {
@@ -139,19 +168,24 @@ fn main() {
     let mut problem: Problem = input.parse().unwrap();
 
     // dbg!(&problem);
-    // problem.hands.iter().for_each(|hwb| {
-    //     let hand_type = hwb.hand.hand_type();
-    //     debug!("hand: {} type: {hand_type:?}", hwb.hand);
-    // });
+    problem.hands.iter().for_each(|hwb| {
+        let hand_type1 = hwb.hand.hand_type(false);
+        let hand_type2 = hwb.hand.hand_type(true);
+        debug!(
+            "hand: {} type: {hand_type1:?} type w/ joker: {hand_type2:?}",
+            hwb.hand
+        );
+    });
 
-    problem.hands.sort_by(|a, b| a.hand.cmp(&b.hand));
+    // Part 1:
+    problem
+        .hands
+        .sort_by(|a, b| cmp_hands(&a.hand, &b.hand, false));
+    dbg!(problem.total_winnings());
 
-    // debug!("---after sort---");
-    // problem.hands.iter().for_each(|hwb| {
-    //     let hand_type = hwb.hand.hand_type();
-    //     debug!("hand: {} type: {hand_type:?}", hwb.hand);
-    // });
-
-    // part 1:
+    // Part 2:
+    problem
+        .hands
+        .sort_by(|a, b| cmp_hands(&a.hand, &b.hand, true));
     dbg!(problem.total_winnings());
 }
