@@ -35,19 +35,10 @@ impl FromStr for Network {
 }
 
 impl Network {
-    fn find_path(&self, from: &str, to: Option<&str>) -> usize {
+    fn find_path(&self, from: &str, to_pred: fn(&str) -> bool) -> usize {
         let mut loc = from;
         let mut steps = 0usize;
-        loop {
-            if let Some(to) = to {
-                if loc == to {
-                    break;
-                }
-            } else {
-                if loc.ends_with('Z') {
-                    break;
-                }
-            }
+        while !to_pred(loc) {
             let idx = steps % self.instructions.len();
             steps += 1;
             // dbg!(loc);
@@ -62,7 +53,7 @@ impl Network {
     }
 
     fn part1(&self) -> usize {
-        self.find_path("AAA", Some("ZZZ"))
+        self.find_path("AAA", |path| path == "ZZZ")
     }
 
     fn part2(&self) -> usize {
@@ -74,7 +65,7 @@ impl Network {
             .collect();
         starts
             .iter()
-            .map(|s| self.find_path(&s, None))
+            .map(|s| dbg!(self.find_path(&s, |path| path.ends_with('Z'))))
             .reduce(|acc, e| lcm(acc, e))
             .unwrap()
     }
