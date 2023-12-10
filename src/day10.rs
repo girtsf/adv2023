@@ -77,8 +77,8 @@ impl Map {
         self.tiles[pos.y as usize][pos.x as usize]
     }
 
-    fn d(&mut self, pos: Pos) -> &mut isize {
-        &mut self.distance[pos.y as usize][pos.x as usize]
+    fn d(&self, pos: Pos) -> isize {
+        self.distance[pos.y as usize][pos.x as usize]
     }
 
     fn in_bounds(&self, pos: Pos) -> bool {
@@ -100,21 +100,29 @@ impl Map {
         }
     }
 
+    fn clear_distance(&mut self) {
+        for y in 0..self.size.y {
+            for x in 0..self.size.x {
+                self.distance[y as usize][x as usize] = -1;
+            }
+        }
+    }
+
     fn find_path(&mut self) -> isize {
-        *self.d(self.start) = 0;
-        // see which directions from start we can go.
-        let dirs = vec![Pos::left(), Pos::up(), Pos::right(), Pos::down()];
-        for d in dirs {
-            let pos = self.start + d;
-            if let Some(pos_connects) = self.connects(pos) {
-                if self.start == pos_connects.0 || self.start == pos_connects.1 {
-                    if let Some(dist) = self.explore(pos) {
-                        return dist;
-                    }
-                }
+        // Try out all possible options for 'S'.
+        for s in "|-LJ7F".chars() {
+            // dbg!(&s);
+            self.tiles[self.start.y as usize][self.start.x as usize] = s;
+            self.clear_distance();
+            if let Some(dist) = self.explore(self.start) {
+                return dist;
             }
         }
         panic!("no way");
+    }
+
+    fn have_visited(&self, pos: Pos) -> bool {
+        self.d(pos) != -1
     }
 
     fn explore(&mut self, pos: Pos) -> Option<isize> {
@@ -122,35 +130,74 @@ impl Map {
         todo.push_back((pos, 0));
 
         while let Some((pos, dist)) = todo.pop_front() {
-            // dbg!(pos, dist);
-            if !self.in_bounds(pos) {
-                continue;
+            // println!("pos={pos:?} dist={dist}");
+            if self.d(pos) == dist {
+                return Some(dist);
             }
-            if pos == self.start {
-                // dbg!("back at start!");
-                if dist > 1 {
-                    return Some((dist + 1) / 2);
+            self.distance[pos.y as usize][pos.x as usize] = dist;
+            if let Some((to1, to2)) = self.connects(pos) {
+                if !self.in_bounds(to1) || !self.in_bounds(to2) {
+                    return None;
                 }
-                continue;
+                if self.d(to1) != (dist - 1) && self.d(to2) != (dist - 1) && dist != 0 {
+                    // We didn't come from either of the directions.
+                    return None;
+                }
+                if !self.have_visited(to1) {
+                    todo.push_back((to1, dist + 1));
+                }
+                if !self.have_visited(to2) {
+                    todo.push_back((to2, dist + 1));
+                }
+            } else {
+                return None;
             }
-            let pos_dist = self.d(pos);
-            if *pos_dist != -1 {
-                // already explored
-                continue;
-            }
-            *pos_dist = dist + 1;
-            let (to1, to2) = self.connects(pos).unwrap();
-            todo.push_back((to1, dist + 1));
-            todo.push_back((to2, dist + 1));
         }
-
         None
+    }
+
+    fn count_inside(&self) -> isize {
+        let mut count = 0;
+        for y in 0..self.size.y {
+            // println!(
+            //     "y={y} | {} | {}",
+            //     join(&self.tiles[y as usize], ""),
+            //     join(&self.distance[y as usize], " ")
+            // );
+            // dbg!(&self.distance[y as usize]);
+            let mut inside = false;
+            let mut wall_enter = ' ';
+            for x in 0..self.size.x {
+                if self.distance[y as usize][x as usize] != -1 {
+                    let t = self.tiles[y as usize][x as usize];
+                    match t {
+                        '|' => inside = !inside,
+                        'F' | 'L' => {
+                            wall_enter = t;
+                        }
+                        'J' if wall_enter == 'F' => {
+                            inside = !inside;
+                        }
+                        '7' if wall_enter == 'L' => {
+                            inside = !inside;
+                        }
+                        _ => {}
+                    }
+                } else if inside {
+                    count += 1;
+                }
+            }
+        }
+        count
     }
 }
 
 fn main() {
     let input = adv2023::read_input();
     let mut map: Map = input.parse().unwrap();
-    // dbg!(&map);
+    // Part 1:
     dbg!(map.find_path());
+    // dbg!(&map);
+    // Part 2:
+    dbg!(map.count_inside());
 }
