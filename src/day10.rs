@@ -1,43 +1,6 @@
-use std::{collections::VecDeque, iter::repeat, ops::Add, str::FromStr};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Pos {
-    y: isize,
-    x: isize,
-}
-
-impl Pos {
-    fn new(y: isize, x: isize) -> Self {
-        Self { y, x }
-    }
-
-    fn up() -> Self {
-        Pos::new(-1, 0)
-    }
-
-    fn down() -> Self {
-        Pos::new(1, 0)
-    }
-
-    fn left() -> Self {
-        Pos::new(0, -1)
-    }
-
-    fn right() -> Self {
-        Pos::new(0, 1)
-    }
-}
-
-impl Add for Pos {
-    type Output = Pos;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        Pos {
-            y: self.y + rhs.y,
-            x: self.x + rhs.x,
-        }
-    }
-}
+use adv2023::Pos;
+use std::collections::VecDeque;
+use std::{iter::repeat, str::FromStr};
 
 #[derive(Debug)]
 struct Map {
