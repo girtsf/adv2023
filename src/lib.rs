@@ -44,15 +44,42 @@ impl Pos {
     pub fn right() -> Self {
         Pos::new(0, 1)
     }
+
+    pub fn check_bounds(&self, size: &Pos) -> bool {
+        self.x >= 0 && self.x < size.x && self.y >= 0 && self.y < size.y
+    }
 }
 
 impl std::ops::Add for Pos {
     type Output = Pos;
 
-    fn add(self, rhs: Self) -> Self::Output {
+    fn add(self, rhs: Pos) -> Self::Output {
         Pos {
             y: self.y + rhs.y,
             x: self.x + rhs.x,
         }
+    }
+}
+
+impl std::ops::Add for &Pos {
+    type Output = Pos;
+
+    fn add(self, rhs: &Pos) -> Self::Output {
+        Pos::add(*self, *rhs)
+    }
+}
+
+impl std::ops::Add<&Pos> for Pos {
+    type Output = Pos;
+
+    fn add(self, rhs: &Pos) -> Self::Output {
+        Pos::add(self, *rhs)
+    }
+}
+
+impl std::ops::AddAssign<&Pos> for Pos {
+    fn add_assign(&mut self, rhs: &Pos) {
+        self.x += rhs.x;
+        self.y += rhs.y;
     }
 }
