@@ -7,13 +7,13 @@ use std::{
 
 use adv2023::Pos;
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 enum RockType {
     Round,
     Cube,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 struct Rock {
     pos: Pos,
     rock_type: RockType,
@@ -55,6 +55,7 @@ impl Map {
             }
             println!();
         }
+        println!("=============");
         println!();
     }
     fn add_rock(&mut self, rock: Rock) {
@@ -195,21 +196,18 @@ fn part2(map: &Map) -> isize {
     let mut states_seen = HashMap::<Rocks, usize>::new();
 
     for i in 0..1000000 {
-        if i % 1024 == 0 {
-            dbg!(i);
-        }
-        if let Some(prev_i) = states_seen.get(&map.rocks) {
+        dbg!(i);
+        let mut rocks = map.rocks.clone();
+        rocks.0.sort();
+        if let Some(prev_i) = states_seen.get(&rocks) {
             let delta = i - prev_i;
             let rem = (1_000_000_000 - i) % delta;
-            // dbg!(rem);
             for _ in 0..rem {
                 cycle(&mut map);
             }
-            // panic!("saw a repeat {i} {prev_i}");
             return map.calculate_load();
-            // dbg!(&map.calculate_load());
         }
-        states_seen.insert(map.rocks.clone(), i);
+        states_seen.insert(rocks, i);
         cycle(&mut map);
     }
     todo!()

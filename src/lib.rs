@@ -13,7 +13,7 @@ pub fn read_input() -> String {
     std::fs::read_to_string(path).expect("read failed")
 }
 
-#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub struct Pos {
     pub y: isize,
     pub x: isize,
