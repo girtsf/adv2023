@@ -48,6 +48,32 @@ impl Pos {
     pub fn check_bounds(&self, size: &Pos) -> bool {
         self.x >= 0 && self.x < size.x && self.y >= 0 && self.y < size.y
     }
+
+    pub fn ccw(&self) -> Self {
+        // (0, 1) -> (-1, 0)
+        // (-1, 0) -> (0, -1)
+        // (0, -1) -> (1, 0)
+        // (1, 0) -> (0, 1)
+        let (y, x) = match (self.y, self.x) {
+            (0, t) if t != 0 => (-t, 0),
+            (t, 0) if t != 0 => (0, t),
+            _ => panic!("not a single dir before: {:?}", self),
+        };
+        Pos::new(y, x)
+    }
+
+    pub fn cw(&self) -> Self {
+        // (0, 1) -> (1, 0)
+        // (1, 0) -> (0, -1)
+        // (0, -1) -> (-1, 0)
+        // (-1, 0) -> (0, 1)
+        let (y, x) = match (self.y, self.x) {
+            (0, t) if t != 0 => (t, 0),
+            (t, 0) if t != 0 => (0, -t),
+            _ => panic!("not a single dir before: {:?}", self),
+        };
+        Pos::new(y, x)
+    }
 }
 
 impl std::ops::Add for Pos {
