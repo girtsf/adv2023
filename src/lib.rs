@@ -1,5 +1,9 @@
 use std::env;
 
+mod range;
+
+pub use range::{Range, Ranges};
+
 pub fn read_input() -> String {
     if env::var("RUST_BACKTRACE").is_err() {
         env::set_var("RUST_BACKTRACE", "1");

@@ -2,6 +2,48 @@ use std::{collections::HashMap, str::FromStr};
 
 use itertools::Itertools;
 
+use adv2023::{Range, Ranges};
+
+#[derive(Clone, Debug)]
+struct AcceptableRanges(HashMap<char, Ranges>);
+
+impl AcceptableRanges {
+    fn all() -> Self {
+        Self(HashMap::from_iter([
+            ('x', Ranges::new(1, 4001)),
+            ('m', Ranges::new(1, 4001)),
+            ('a', Ranges::new(1, 4001)),
+            ('s', Ranges::new(1, 4001)),
+        ]))
+    }
+
+    fn combinations(&self) -> usize {
+        self.0.values().map(|r| r.len()).product1().unwrap()
+    }
+
+    fn bisect(
+        &self,
+        xmas: char,
+        comparison: char,
+        against: isize,
+    ) -> (AcceptableRanges, AcceptableRanges) {
+        let (matching_range, other_range) = match comparison {
+            '<' => (Range::new(1, against), Range::new(against, 4001)),
+            '>' => (Range::new(against + 1, 4001), Range::new(1, against + 1)),
+            _ => panic!(),
+        };
+        let mut matching = self.clone();
+        matching.0.entry(xmas).and_modify(|ranges| {
+            *ranges = ranges.intersect_one(&matching_range);
+        });
+        let mut other = self.clone();
+        other.0.entry(xmas).and_modify(|ranges| {
+            *ranges = ranges.intersect_one(&other_range);
+        });
+        (matching, other)
+    }
+}
+
 #[derive(Clone, Debug)]
 enum Action {
     Accept,
@@ -108,6 +150,37 @@ impl Workflows {
             }
         }
     }
+
+    fn count(&self, action: &Action, parts: &AcceptableRanges) -> usize {
+        let name = match action {
+            Action::Accept => {
+                return parts.combinations();
+            }
+            Action::Reject => {
+                return 0;
+            }
+            Action::Send(name) => name,
+        };
+
+        let workflow = self.0.get(name).unwrap();
+
+        let mut parts_left = parts.clone();
+        let mut count = 0usize;
+
+        for rule in workflow.rules.iter() {
+            let (matching_parts, new_parts_left) =
+                parts_left.bisect(rule.xmas, rule.comparison, rule.against);
+            count += self.count(&rule.action, &matching_parts);
+            parts_left = new_parts_left;
+        }
+        count += self.count(&workflow.default, &parts_left);
+        // println!("count({:?}, {:?}) = {:?}", action, parts, count);
+        count
+    }
+
+    fn part2(&self) -> usize {
+        self.count(&Action::Send("in".to_string()), &AcceptableRanges::all())
+    }
 }
 
 #[derive(Debug)]
@@ -144,8 +217,8 @@ fn main() {
         .lines()
         .map(|line| line.parse().unwrap())
         .collect();
-    dbg!(&workflows);
-    dbg!(&parts);
+    // dbg!(&workflows);
+    // dbg!(&parts);
     let part1: isize = parts
         .iter()
         .map(|part| {
@@ -157,4 +230,5 @@ fn main() {
         })
         .sum();
     dbg!(&part1);
+    dbg!(workflows.part2());
 }
