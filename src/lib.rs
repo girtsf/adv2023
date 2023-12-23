@@ -53,6 +53,10 @@ impl Pos {
         self.x >= 0 && self.x < size.x && self.y >= 0 && self.y < size.y
     }
 
+    pub fn wrap(&self, size: &Pos) -> Pos {
+        Pos(self.y % size.y, self.x % size.x)
+    }
+
     pub fn ccw(&self) -> Self {
         // (0, 1) -> (-1, 0)
         // (-1, 0) -> (0, -1)
