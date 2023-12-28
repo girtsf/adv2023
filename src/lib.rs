@@ -53,8 +53,18 @@ impl Pos {
         self.x >= 0 && self.x < size.x && self.y >= 0 && self.y < size.y
     }
 
-    pub fn wrap(&self, size: &Pos) -> Pos {
-        Pos(self.y % size.y, self.x % size.x)
+    // pub fn wrap(&self, size: &Pos) -> Pos {
+    //     Pos(self.y % size.y, self.x % size.x)
+    // }
+    //
+
+    pub fn orthogonal_neighbors(&self) -> [Pos; 4] {
+        [
+            self + &Pos::left(),
+            self + &Pos::up(),
+            self + &Pos::right(),
+            self + &Pos::down(),
+        ]
     }
 
     pub fn ccw(&self) -> Self {
@@ -81,6 +91,10 @@ impl Pos {
             _ => panic!("not a single dir before: {:?}", self),
         };
         Pos::new(y, x)
+    }
+
+    pub fn opposite(&self) -> Self {
+        Pos::new(-self.y, -self.x)
     }
 }
 
