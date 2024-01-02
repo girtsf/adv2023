@@ -1,4 +1,7 @@
-use std::collections::{BTreeSet, HashMap, HashSet};
+use std::{
+    cmp::max,
+    collections::{BTreeSet, HashMap, HashSet},
+};
 
 use adv2023::Pos;
 
@@ -10,7 +13,7 @@ struct Edge {
     connects_to: NodeIdx,
 }
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 struct Node {
     pos: Pos,
     outgoing: Vec<Edge>,
@@ -18,7 +21,7 @@ struct Node {
     longest_distance: usize,
 }
 
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 struct Graph {
     nodes: Vec<Node>,
     pos_to_node: HashMap<Pos, NodeIdx>,
@@ -38,9 +41,63 @@ impl Graph {
         self.pos_to_node.insert(pos.clone(), idx);
         idx
     }
+
+    fn add_edge(&mut self, from: NodeIdx, connects_to: NodeIdx, length: usize) {
+        self.nodes[from].outgoing.push(Edge {
+            length,
+            connects_to,
+        });
+        assert!(self.nodes[connects_to].incoming.insert(from));
+    }
+
+    fn dump_nodes(&self) {
+        println!("digraph G {{");
+        for (i, node) in self.nodes.iter().enumerate() {
+            print!("  N{i} -> {{");
+            for edge in &node.outgoing {
+                print!("N{} ", edge.connects_to);
+            }
+            println!("}}");
+        }
+        println!("}}");
+    }
+
+    fn make_bidirectional(&mut self) {
+        for (i, node) in self.nodes.clone().iter().enumerate() {
+            for edge in &node.outgoing {
+                self.add_edge(edge.connects_to, i, edge.length);
+            }
+        }
+    }
+
+    fn recurse(&self, node_idx: NodeIdx, mut visited_mask: u64, length: usize) -> Option<usize> {
+        if node_idx == (self.nodes.len() - 1) {
+            // assumes end is last idx
+            return Some(length);
+        }
+        if ((1 << node_idx) & visited_mask) != 0 {
+            // seen already
+            return None;
+        }
+        let mut out: Option<usize> = None;
+        visited_mask |= 1 << node_idx;
+        for edge in &self.nodes[node_idx].outgoing {
+            if let Some(result_length) =
+                self.recurse(edge.connects_to, visited_mask, length + edge.length)
+            {
+                out = Some(max(out.unwrap_or_default(), result_length));
+            }
+        }
+        out
+    }
+
+    fn brute_force_longest_path(&self) -> usize {
+        // assumes going from 0 to last idx.
+        self.recurse(0, 0, 0).unwrap()
+    }
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 struct Problem {
     map: Vec<Vec<char>>,
     map_size: Pos,
@@ -142,11 +199,7 @@ impl Problem {
                 }
                 // println!("node_idx: {node_idx}, will look at edge starting at {n_pos:?}");
                 if let Some((connects_to, length)) = self.walk_edge(n_pos, dir) {
-                    self.graph.nodes[node_idx].outgoing.push(Edge {
-                        length,
-                        connects_to,
-                    });
-                    assert!(self.graph.nodes[connects_to].incoming.insert(node_idx));
+                    self.graph.add_edge(node_idx, connects_to, length);
                 }
             }
         }
@@ -157,19 +210,7 @@ impl Problem {
         self.find_edges();
     }
 
-    fn dump_nodes(&self) {
-        println!("digraph G {{");
-        for (i, node) in self.graph.nodes.iter().enumerate() {
-            print!("  N{i} -> {{");
-            for edge in &node.outgoing {
-                print!("N{} ", edge.connects_to);
-            }
-            println!("}}");
-        }
-        println!("}}");
-    }
-
-    fn find_longest_path(&mut self) -> usize {
+    fn find_longest_directional_path(&mut self) -> usize {
         let mut queue = BTreeSet::<NodeIdx>::from([0]);
         while let Some(node_idx) = queue.pop_first() {
             assert!(self.graph.nodes[node_idx].incoming.is_empty());
@@ -200,8 +241,14 @@ fn main() {
     let input = adv2023::read_input();
     let mut problem = Problem::new(&input);
     problem.build();
-    // problem.dump_nodes();
-    // dbg!(&problem.graph);
-    let part1 = problem.find_longest_path();
+    problem.graph.dump_nodes();
+
+    let mut graph2 = problem.graph.clone();
+    let part1 = problem.find_longest_directional_path();
     dbg!(&part1);
+
+    graph2.make_bidirectional();
+    graph2.dump_nodes();
+    let part2 = graph2.brute_force_longest_path();
+    dbg!(&part2);
 }
