@@ -1,8 +1,8 @@
+use itertools::Itertools;
+pub use range::{Range, Ranges};
 use std::env;
 
 mod range;
-
-pub use range::{Range, Ranges};
 
 pub fn read_input() -> String {
     if env::var("RUST_BACKTRACE").is_err() {
@@ -156,5 +156,12 @@ impl Pos3 {
             y: self.y,
             z: self.z - 1,
         }
+    }
+}
+
+impl FromIterator<isize> for Pos3 {
+    fn from_iter<T: IntoIterator<Item = isize>>(iter: T) -> Self {
+        let (x, y, z) = iter.into_iter().collect_tuple().expect("expected 3 items");
+        Self { x, y, z }
     }
 }
