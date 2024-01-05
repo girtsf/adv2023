@@ -131,3 +131,30 @@ impl std::ops::AddAssign<&Pos> for Pos {
         self.y += rhs.y;
     }
 }
+
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct Pos3 {
+    pub x: isize,
+    pub y: isize,
+    pub z: isize,
+}
+
+impl Pos3 {
+    pub fn new<T>(x: T, y: T, z: T) -> Self
+    where
+        T: TryInto<isize>,
+    {
+        let x = x.try_into().unwrap_or_else(|_| panic!());
+        let y = y.try_into().unwrap_or_else(|_| panic!());
+        let z = z.try_into().unwrap_or_else(|_| panic!());
+        Self { x, y, z }
+    }
+
+    pub fn below(&self) -> Self {
+        Self {
+            x: self.x,
+            y: self.y,
+            z: self.z - 1,
+        }
+    }
+}
